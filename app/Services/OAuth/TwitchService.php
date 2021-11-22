@@ -2,9 +2,10 @@
 
 namespace App\Services\OAuth;
 
+use App\Contracts\OAuthServiceContract;
 use GuzzleHttp\Client;
 
-class TwitchService
+class TwitchService implements OAuthServiceContract
 {
     private Client $client;
 
@@ -16,9 +17,10 @@ class TwitchService
         ]);
     }
 
-    public function twitchAuth(string $code): array
+    public function auth(string $code): array
     {
         $uri = "https://id.twitch.tv/oauth2/token";
+
         $response = $this->client->request('POST', $uri, [
             'form_params' => [
                 'client_id' => env('TWITCH_OAUTH_ID'),
@@ -31,9 +33,10 @@ class TwitchService
         return json_decode($response->getBody(), true);
     }
 
-    public function getTwitchUser(string $token): array
+    public function getUser(string $token): array
     {
         $uri = "users";
+
         $response = $this->client->request('GET', $uri, [
             'headers' => [
                 'Client-ID' => env('TWITCH_OAUTH_ID'),

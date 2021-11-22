@@ -2,10 +2,10 @@
 
 namespace App\Services\OAuth;
 
+use App\Contracts\OAuthServiceContract;
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
 
-class GithubService
+class GithubService implements OAuthServiceContract
 {
     private Client $client;
 
@@ -17,29 +17,27 @@ class GithubService
         ]);
     }
 
-    public function githubAuth(string $code): array
+    public function auth(string $code): array
     {
         $url = "https://github.com/login/oauth/access_token";
-        try {
-            $response = $this->client->request('POST', $url, [
-                'form_params' => [
-                    'client_id' => env('GITHUB_OAUTH_ID'),
-                    'client_secret' => env('GITHUB_OAUTH_SECRET'),
-                    'code' => $code,
-                ],
-                'headers' => [
-                    'Accept' => 'application/json'
-                ]
-            ]);
-            return json_decode($response->getBody(), true);
-        } catch (GuzzleException $exception) {
-            return ["deu merda: " . $exception->getMessage()];
-        }
+
+        $response = $this->client->request('POST', $url, [
+            'form_params' => [
+                'client_id' => env('GITHUB_OAUTH_ID'),
+                'client_secret' => env('GITHUB_OAUTH_SECRET'),
+                'code' => $code,
+            ],
+            'headers' => [
+                'Accept' => 'application/json'
+            ]
+        ]);
+        return json_decode($response->getBody(), true);
     }
 
-    public function getGithubUser(string $token): array
+    public function getUser(string $token): array
     {
         $uri = "/user";
+
         $response = $this->client->request('GET', $uri, [
             'headers' => [
                 'Authorization' => 'Bearer ' . $token

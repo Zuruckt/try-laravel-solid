@@ -2,46 +2,41 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\OAuthServiceContract;
+use App\Exceptions\UnknownProviderException;
 use App\Models\User;
 use App\Services\OAuth\GithubService;
 use App\Services\OAuth\TwitchService;
+use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Ramsey\Uuid\Uuid;
+use Symfony\Component\HttpFoundation\Response;
 
 class AuthController extends Controller
 {
-    public function getTwitchProvider(Request $request)
+    public function authenticate(Request $request, string $provider): Response
     {
         if (!$code = $request->query('code')) {
             return redirect('/');
         }
 
-        $service = new TwitchService();
-        $response = $service->twitchAuth($code);
-        $providerUser = $service->getTwitchUser($response['access_token']);
+        try {
+            $service = $this->getProvider($provider);
+            $response = $service->auth($code);
+            $providerUser = $service->getUser($response['access_token']);
 
-        $user = $this->findOrCreate('twitch', $providerUser);
-        Auth::login($user);
+            $user = $this->findOrCreate($provider, $providerUser);
+            Auth::login($user);
 
-        return redirect('/dashboard');
-    }
-
-    public function getGithubProvider(Request $request)
-    {
-        if (!$code = $request->query('code')) {
-            return redirect('/');
+            return redirect('/dashboard');
+        } catch (UnknownProviderException $e) {
+            return redirect('/dashboard')->withErrors(['error' => 'The given provider was invalid'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (GuzzleException $e) {
+            return redirect('/dashboard')->withErrors(['error' => 'Failed to communicate with ' . ucfirst($provider)], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $service = new GithubService();
-        $response = $service->githubAuth($code);
-        $providerUser = $service->getGithubUser($response['access_token']);
-
-        $user = $this->findOrCreate('github', $providerUser);
-        Auth::login($user);
-
-        return redirect('/dashboard');
     }
 
     private function findOrCreate(string $provider, array $providerUser)
@@ -78,5 +73,17 @@ class AuthController extends Controller
         Auth::logout();
 
         return redirect('/');
+    }
+
+    /**
+     * @throws UnknownProviderException
+     */
+    private function getProvider(string $provider): OAuthServiceContract
+    {
+        return match ($provider) {
+            'github' => new GithubService(),
+            'twitch' => new TwitchService(),
+            default => throw new UnknownProviderException(),
+        };
     }
 }

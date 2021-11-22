@@ -8,6 +8,10 @@
         <p>This project is for you practice more about SOLID skills with Laravel and learn about a lot</p>
     </div>
 
+    @foreach($errors->all() as $error)
+        <div class="alert alert-danger">{{ $error }}</div>
+    @endforeach
+
     <div class="card border-primary">
         <div class="card-body ">
             <div class="row">
